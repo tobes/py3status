@@ -14,9 +14,10 @@ Configuration parameters:
 
 Format of status string placeholders:
     {alive} State of thread `Alive` or `Dead`
-    {count} Number of updates of module since being monitored
-    {time} Time that module has taken running since monitored
     {cached_until} Time till next update of the module
+    {count} Number of updates of module since being monitored
+    {name} Module name
+    {time} Time that module has taken running since monitored
 
 @author tobes
 @license BSD
