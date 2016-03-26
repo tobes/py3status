@@ -18,20 +18,21 @@ https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 Configuration parameters:
     blocks: a string, where each character represents time period
         from the start of a time period.
+        (default '🕛🕧🕐🕜🕑🕝🕒🕞🕓🕟🕔🕠🕕🕡🕖🕢🕗🕣🕘🕤🕙🕥🕚🕦')
     block_hours: length of time period for all blocks in hours (default 12)
     button_reset: button that switches display to the first timezone. setting
         to 0 disables button press (default 1)
     cycle: If more than one display then how many seconds between changing the
         display (default 10)
     format: defines the timezones displayed these can be separated by `;` for
-        multiple displays that are switched between (default '{local}')
+        multiple displays that are switched between (default '{Local}')
     format_time: format to use for the time, strftime directives such as `%H`
         can be used (default '{name} {icon} %c')
 
 Format of status string placeholders:
     {icon} a character representing the time from `blocks`
     {name} friendly timezone name eg `Buenos Aires`
-    {timezone} full timezone name eg America/Argentina/Buenos_Aires
+    {timezone} full timezone name eg `America/Argentina/Buenos_Aires`
 
 Requires:
     pytz: python library
