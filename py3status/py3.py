@@ -1,3 +1,7 @@
+from time import sleep
+import inspect
+
+
 PY3_CACHE_FOREVER = -1
 
 
@@ -54,3 +58,55 @@ class Py3:
         level can be 'info', 'error' or 'warning'
         """
         self._module._py3_wrapper.notify_user(msg, level=level)
+
+
+class MockPy3:
+    """
+    Mock Helper object.
+    """
+
+    CACHE_FOREVER = PY3_CACHE_FOREVER
+
+    def update(self, module_name=None):
+        pass
+
+    def get_module_info(self, module_name):
+        pass
+
+    def trigger_event(self, module_name, event):
+        pass
+
+    def notify_user(self, msg, level='info'):
+        pass
+
+
+def test_module(module_class):
+    config = {
+        'color_bad': '#FF0000',
+        'color_degraded': '#FFFF00',
+        'color_good': '#00FF00'
+    }
+    module = module_class()
+    setattr(module, 'py3', MockPy3())
+    methods = []
+    for method_name in sorted(dir(module)):
+        if method_name.startswith('_'):
+            continue
+        if method_name in ['on_click', 'kill', 'py3']:
+            continue
+        if not hasattr(getattr(module_class, method_name, ''), '__call__'):
+            continue
+
+        method = getattr(module, method_name, None)
+        args, vargs, kw, defaults = inspect.getargspec(method)
+        if len(args) == 1:
+            methods.append((method_name, []))
+        else:
+            methods.append((method_name, [[], config]))
+    while True:
+        try:
+            for method, method_args in methods:
+                print(getattr(module, method)(*method_args))
+            sleep(1)
+        except KeyboardInterrupt:
+            break
