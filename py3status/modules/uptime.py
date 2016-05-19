@@ -43,40 +43,46 @@ class Py3status:
         # provides .days and .seconds anyway
         try:
             with open('/proc/uptime', 'r') as f:
-                # Getting rid of the seconds part. Keeping the floating point
+                # Getting rid of the miliseconds part. Keeping the floating point
                 # part would make divmod return floats, and thus would require
                 # days/hours/minutes/seconds to be casted to int before
                 # formatting, which would be dirty to handle since we can't
                 # cast None to int
-                up = int(float(f.readline().split()[0]))
+                uptime = float(f.readline().split()[0])
         except:
             return {'full_text': "None"}
         # Setting things to None directly to avoid an else clause everywhere
-        cache_timeout = years = days = hours = minutes = seconds = None
+        years = days = hours = minutes = seconds = None
+
+        update_delta = 3600
+
+        up = int(uptime)
         # Years
         if '{years}' in self.format:
             years, up = divmod(up, 31536000)  # 365 days year
-            cache_timeout = 31536000
+            update_delta = 31536000
         # Days
         if '{days}' in self.format:
             days, up = divmod(up, 86400)
-            cache_timeout = 86400
+            update_delta = 86400
         # Hours
         if '{hours}' in self.format:
             hours, up = divmod(up, 3600)
-            cache_timeout = 3600
+            update_delta = 3600
         # Minutes
         if '{minutes}' in self.format:
             minutes, up = divmod(up, 60)
-            cache_timeout = 60
+            update_delta = 60
         # Seconds
         if '{seconds}' in self.format:
             seconds = up
-            cache_timeout = None
+            update_delta = 1
+
+        # calculate when we next need to update
+        delay = update_delta - uptime % update_delta
 
         response = {}
-        if cache_timeout:
-            response['cached_until'] = time() + cache_timeout
+        response['cached_until'] = time() + delay
         response['full_text'] = self.format.format(years=years,
                                                    days=days,
                                                    hours=hours,
