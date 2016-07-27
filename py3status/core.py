@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 import time
+import itertools
 
 from collections import deque
 from json import dumps
@@ -636,12 +637,17 @@ class Py3statusWrapper():
                     for index in module['position']:
                         # store the output as json
                         # modules can have more than one output
-                        out = module['module'].get_latest()
-                        output[index] = ', '.join([dumps(x) for x in out])
+                        output[index] = module['module'].get_latest()
 
                 # build output string
-                out = ','.join([x for x in output if x])
+                out = list(itertools.chain(*output))
+                from random import randint
+                selected = None#randint(0, len(out))
+                if selected is not None and len(out) > selected:
+                    out[selected] = out[selected].copy()
+                    out[selected]['border'] = '#FFFF00'
                 # dump the line to stdout
+                out = ','.join([dumps(x) for x in out if x])
                 print_line(',[{}]'.format(out))
 
             # sleep a bit before doing this again to avoid killing the CPU
