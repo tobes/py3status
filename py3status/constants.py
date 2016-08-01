@@ -10,6 +10,11 @@ GENERAL_DEFAULTS = {
     'output_format': 'i3bar'
 }
 
+PY3_CACHE_FOREVER = -1
+PY3_LOG_ERROR = 'error'
+PY3_LOG_INFO = 'info'
+PY3_LOG_WARNING = 'warning'
+
 MAX_NESTING_LEVELS = 4
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'

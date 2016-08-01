@@ -4,11 +4,9 @@ from time import time
 from subprocess import Popen, call
 from string import Formatter
 
-
-PY3_CACHE_FOREVER = -1
-PY3_LOG_ERROR = 'error'
-PY3_LOG_INFO = 'info'
-PY3_LOG_WARNING = 'warning'
+from py3status.constants import (
+    PY3_CACHE_FOREVER, PY3_LOG_ERROR, PY3_LOG_INFO, PY3_LOG_WARNING
+)
 
 
 class Py3:

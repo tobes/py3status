@@ -6,7 +6,8 @@ from threading import Thread, Timer
 from collections import OrderedDict
 from time import time
 
-from py3status.py3 import Py3, PY3_CACHE_FOREVER
+from py3status.py3 import Py3
+from py3status.constants import PY3_CACHE_FOREVER
 from py3status.profiling import profile
 
 
