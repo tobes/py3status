@@ -38,6 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             'py3status = py3status:main',
+            'py3status-cli = py3status.cli:main',
         ]
     },
     classifiers=[

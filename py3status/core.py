@@ -19,6 +19,7 @@ import py3status.docstrings as docstrings
 from py3status.events import Events
 from py3status.helpers import print_line, print_stderr
 from py3status.i3status import I3status
+from py3status.dbus import DbusControls
 from py3status.module import Module
 from py3status.profiling import profile
 from py3status.version import version
@@ -260,6 +261,7 @@ class Py3statusWrapper():
         signal(SIGTSTP, self.i3bar_stop)
         # SIGCONT indicates output should be resumed.
         signal(SIGCONT, self.i3bar_start)
+        self.dbus_controls = DbusControls(self)
 
         # setup configuration
         self.config = self.get_config()
@@ -630,7 +632,7 @@ class Py3statusWrapper():
                     i3status_thread.update_times()
 
             # check if an update is needed
-            if self.queue:
+            if self.queue or self.dbus_controls.force_update:
                 while (len(self.queue)):
                     module_name = self.queue.popleft()
                     module = self.output_modules[module_name]
@@ -638,14 +640,18 @@ class Py3statusWrapper():
                         # store the output as json
                         # modules can have more than one output
                         output[index] = module['module'].get_latest()
-
                 # build output string
-                out = list(itertools.chain(*output))
-                from random import randint
-                selected = None#randint(0, len(out))
-                if selected is not None and len(out) > selected:
-                    out[selected] = out[selected].copy()
-                    out[selected]['border'] = '#FFFF00'
+                out = list(itertools.chain(*[x for x in output if x]))
+                self.dbus_controls.force_update = False
+                self.dbus_controls.current_output = out
+
+                if self.dbus_controls.active:
+                    selected = self.dbus_controls.selected
+                    if selected is not None and len(out) > selected:
+                        out[selected] = out[selected].copy()
+                        out[selected]['background'] = '#FFFF00'
+                        out[selected]['color'] = '#0000FF'
+                        out[selected]['urgent'] = False
                 # dump the line to stdout
                 out = ','.join([dumps(x) for x in out if x])
                 print_line(',[{}]'.format(out))
