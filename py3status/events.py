@@ -135,15 +135,21 @@ class Events(Thread):
         # execute any configured i3-msg command
         # we do not do this for containers
         if top_level:
-            if self.on_click.get(module_name, {}).get(button):
-                self.on_click_dispatcher(module_name,
-                                         self.on_click[module_name].get(button))
+            click_module = event['name']
+            if event['instance']:
+                click_module += ' ' + event['instance']
+            btn = str(button)
+            if self.on_click.get(click_module, {}).get(btn):
+                self.on_click_dispatcher(click_module,
+                                         self.on_click[module_name].get(btn))
             # otherwise setup default action on button 2 press
             elif button == 2:
                 default_event = True
 
         # get the module that the event is for
         module_info = self.output_modules.get(module_name)
+        if not module_info:
+            return
         module = module_info['module']
         # if module is a py3status one and it has an on_click function then
         # call it.
@@ -225,6 +231,4 @@ class Events(Thread):
                 self.process_event(module_name, event)
 
             except Exception:
-                err = sys.exc_info()[1]
-                self.error = err
-                self.py3_wrapper.log('event failed ({})'.format(err), 'warning')
+                self.py3_wrapper.report_exception('Event failed')
