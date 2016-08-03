@@ -69,21 +69,11 @@ class DbusInterface(object):
 
     def refresh(self, args):
         # Refresh all modules.
-        # FIXME move logic from sig_handler() to better named function()
-        self.py3_wrapper.sig_handler(None, None)
+        self.py3_wrapper.refresh_modules()
 
     def update(self, args):
         # update any modules starting with the given string
-        # FIXME this should move to a function in core.py
-        update_i3status = False
-        for name, module in self.py3_wrapper.output_modules.items():
-            if name.startswith(args):
-                if module['type'] == 'py3status':
-                    module['module'].force_update()
-                else:
-                    update_i3status = True
-        if update_i3status:
-            call(['killall', '-s', 'USR1', 'i3status'])
+        self.py3_wrapper.refresh_modules(args)
 
 
 class DbusControls:
@@ -94,50 +84,36 @@ class DbusControls:
         self.force_update = False
         self.selected = 0
         self.current_output = []
+        self.loop = None
         if dbus_available:
-            self._start_handler_thread()
+            self.start_handler_thread()
+
+    def kill(self):
+      #  if self.loop:
+      #      self.loop.quit()
+        self.service.unpublish()
 
     def event(self, button):
         # Create and dispatch a fake event
         item = self.current_output[self.selected]
-        # usage variables
-        instance = item.get('instance', '')
-        event = {'x': 0, 'y': 0}
-        # FIXME this is repeated from events.py which should be refactored to
-        # reduce this code retition.
-        name = item.get('name', '')
-        event['name'] = name
-        event['button'] = button
+        event = {
+            'x': 0,
+            'y': 0,
+            'instance': item.get('instance', ''),
+            'name': item.get('name', ''),
+            'button': button,
+        }
+        self.py3_wrapper.events_thread.dispatch_event(event)
 
-        # composites have an index which is passed to i3bar with
-        # the instance.  We need to separate this out here and
-        # clean up the event.  If index
-        # is an integer type then cast it as such.
-        if ' ' in instance:
-            instance, index = instance.split(' ', 1)
-            try:
-                index = int(index)
-            except ValueError:
-                pass
-            event['index'] = index
-            event['instance'] = instance
-        else:
-            event['instance'] = instance
-
-        # guess the module config name
-        module_name = '{} {}'.format(name, instance).strip()
-        # do the work
-        self.py3_wrapper.events_thread.process_event(module_name, event)
-
-    def _start_handler_thread(self):
+    def start_handler_thread(self):
         """Called once to start the event handler thread."""
-        t = Thread(target=self._start_loop)
+        t = Thread(target=self.start_loop)
         t.daemon = True
         t.start()
 
-    def _start_loop(self):
+    def start_loop(self):
         """Starts main event handler loop, run in handler thread t."""
         bus = SessionBus()
-        bus.publish("py3status.control", DbusInterface(self))
-        loop = GObject.MainLoop()
-        loop.run()
+        self.service = bus.publish("py3status.control", DbusInterface(self))
+        self.loop = GObject.MainLoop()
+        self.loop.run()
