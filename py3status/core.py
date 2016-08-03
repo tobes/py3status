@@ -582,6 +582,13 @@ class Py3statusWrapper():
             if module['type'] == 'py3status':
                 module['module'].wake()
 
+    @staticmethod
+    def mod_name(module_output):
+        '''
+        returns an identifing string for piece of i3bar output
+        '''
+        return '{}{}'.format(module_output['name'], module_output['instance'])
+
     @profile
     def run(self):
         """
@@ -658,11 +665,32 @@ class Py3statusWrapper():
                         output[index] = module['module'].get_latest()
                 # build output string
                 out = list(itertools.chain(*[x for x in output if x]))
-                self.dbus_controls.force_update = False
-                self.dbus_controls.current_output = out
 
+                # Keyboard controls special output we only want to when we need
+                # to.
+                self.dbus_controls.force_update = False
                 if self.dbus_controls.active:
+                    # Store output needed for events
+                    self.dbus_controls.current_output = out
                     selected = self.dbus_controls.selected
+                    selected_module = self.dbus_controls.selected_module
+                    if (selected_module and
+                            self.mod_name(out[selected]) != selected_module):
+                        # The module selected is not the one we were expecting.
+                        # Try to find the correct module if we can.
+                        for index, item in enumerate(out):
+                            if self.mod_name(item) == selected_module:
+                                selected = index
+                                self.dbus_controls.selected = index
+                                break
+                    # Update our currently selected module.
+                    # We do this so that if the index of the module changes we
+                    # can update to the new index.
+                    selected_module = self.mod_name(out[selected])
+                    self.dbus_controls.selected_module = selected_module
+                    # identify our selected module to the user.  We make a copy
+                    # so that the origional output is not changed and can be
+                    # reused.
                     if selected is not None and len(out) > selected:
                         out[selected] = out[selected].copy()
                         out[selected]['background'] = '#FFFF00'

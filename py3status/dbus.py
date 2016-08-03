@@ -50,18 +50,22 @@ class DbusInterface(object):
         outputs = len(self.controller.current_output)
         if self.controller.selected >= outputs:
             self.controller.selected = outputs - 1
+        self.controller.selected_module = None
 
     def previous(self, args):
         self.controller.selected -= 1
         if self.controller.selected < 0:
             self.controller.selected = 0
+        self.controller.selected_module = None
 
     def first(self, args):
         self.controller.selected = 0
+        self.controller.selected_module = None
 
     def last(self, args):
         outputs = len(self.controller.current_output)
         self.controller.selected = outputs - 1
+        self.controller.selected_module = None
 
     def button(self, args):
         button = int(args)
@@ -83,6 +87,7 @@ class DbusControls:
         self.active = False
         self.force_update = False
         self.selected = 0
+        self.selected_module = None
         self.current_output = []
         self.loop = None
         if dbus_available:
