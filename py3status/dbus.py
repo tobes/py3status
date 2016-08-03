@@ -94,9 +94,10 @@ class DbusControls:
             self.start_handler_thread()
 
     def kill(self):
-      #  if self.loop:
-      #      self.loop.quit()
-        self.service.unpublish()
+        if self.loop:
+            self.loop.quit()
+        if self.service:
+            self.service.unpublish()
 
     def event(self, button):
         # Create and dispatch a fake event
