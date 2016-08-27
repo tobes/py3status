@@ -38,9 +38,14 @@ class Block:
         self.param_dict = param_dict
         self.parent = parent
         self.valid_blocks = set()
+        self.parameters_used = []
+        self.block_parameters = []
 
     def __repr__(self):
         return repr(self.options)
+
+    def parameter_used(self, name):
+        self.parameters_used.append(name)
 
     def add(self, item):
         """
@@ -97,6 +102,11 @@ class Block:
         """
         if self.is_valid_by_command():
             self.mark_valid()
+        self.set_params_used()
+
+    def set_params_used(self):
+        self.block_parameters.append(self.parameters_used)
+        self.parameters_used = []
 
     def show(self, is_composite):
         """
@@ -110,9 +120,11 @@ class Block:
             self.options.append(self.content)
 
         output = []
+        parameters_used = []
 
         for index, option in enumerate(self.options):
             if index in self.valid_blocks:
+                parameters_used = self.block_parameters[index]
                 # A block may be valid but has a command that causes this to be
                 # disregarded.
                 if self.is_valid_by_command() is False:
@@ -121,7 +133,9 @@ class Block:
                 # to the output
                 for item in option:
                     if isinstance(item, Block):
-                        output.extend(item.show(is_composite))
+                        block_output, parameters = item.show(is_composite)
+                        output.extend(block_output)
+                        parameters_used.extend(parameters)
                     else:
                         output.append(item)
                 break
@@ -133,7 +147,7 @@ class Block:
             # apply our max length command
             if 'max_length' in self.commands:
                 data = data[:int(self.commands['max_length'])]
-            return data
+            return data, parameters_used
 
         # Build up our output.  We join any text pieces togeather and if we
         # have composites we keep them for final substitution in the main block
@@ -152,6 +166,7 @@ class Block:
                 if self.parent is None:
                     # This is the main block so we get the actual composites
                     composite = self.composites.get(item.name)
+                    parameters_used.append(item.name)
                     if isinstance(composite, list):
                         data += composite
                     else:
@@ -164,7 +179,7 @@ class Block:
             else:
                 data.append(text)
 
-        return data
+        return data, parameters_used
 
 
 class Formatter:
@@ -187,7 +202,7 @@ class Formatter:
     reg_ex = re.compile(TOKENS[0], re.M | re.I)
 
     def format(self, format_string, module=None, param_dict=None,
-               composites=None):
+               composites=None, return_used=False):
         """
         Format a string.
         substituting place holders which can be found in
@@ -208,6 +223,8 @@ class Formatter:
                 value = value.format(**{key: param})
                 block.add(value)
                 block.mark_valid()
+                return True
+            return False
 
         # fix python 2 unicode issues
         if self.python2 and isinstance(format_string, str):
@@ -251,12 +268,14 @@ class Formatter:
                 elif key in param_dict:
                     # was a supplied parameter
                     param = param_dict.get(key)
-                    set_param(param, value, key)
+                    if set_param(param, value, key):
+                        block.parameter_used(key)
                 elif module and hasattr(module, key):
                     # attribute of the module
                     param = getattr(module, key)
                     if not hasattr(param, '__call__'):
-                        set_param(param, value, key)
+                        if set_param(param, value, key):
+                            block.parameter_used(key)
                     else:
                         block.add(value)
                 else:
@@ -284,7 +303,11 @@ class Formatter:
         # one for situations like '{placeholder}|Nothing'
         if not block.valid_blocks:
             block.mark_valid()
-        return block.show(is_composite)
+        block.set_params_used()
+        output, parameter_used = block.show(is_composite)
+        if return_used:
+            return output, parameter_used
+        return output
 
 
 if __name__ == '__main__':
@@ -589,6 +612,119 @@ if __name__ == '__main__':
             'expected': [{'full_text': u'TEST '}, {'full_text': 'NY 12:34'}],
             'composite': True,
         },
+        {
+            'format': '{complex} {complex}',
+            'expected': [{'full_text': 'LA 09:34'}, {'full_text': 'NY 12:34'},
+                         {'full_text': ' '}, {'full_text': 'LA 09:34'},
+                         {'full_text': 'NY 12:34'}],
+            'composite': True,
+        },
+        {
+            'format': 'TEST [{simple}|{complex}]',
+            'expected': [{'full_text': u'TEST '}, {'full_text': 'NY 12:34'}],
+            'composite': True,
+        },
+        {
+            'format': 'TEST {simple}|{complex}',
+            'expected': [{'full_text': u'TEST '}, {'full_text': 'NY 12:34'}],
+            'composite': True,
+        },
+        # parameters used
+        {
+            'format': u'hello ☂',
+            'expected': u'hello ☂',
+            'used': [],
+        },
+        {
+            'format': 'hello ☂',
+            'expected': u'hello ☂',
+        },
+        {
+            'format': '[hello]',
+            'expected': '',
+            'used': [],
+        },
+        {
+            'format': '{missing} {name} {number}',
+            'expected': '{missing} Björk 42',
+            'used': ['name', 'number'],
+        },
+        {
+            'format': '{missing}|{name}|{number}',
+            'expected': 'Björk',
+            'used': ['name'],
+        },
+        {
+            'format': '{missing}|empty',
+            'expected': 'empty',
+            'used': [],
+        },
+        {
+            'format': 'zero [one [two [three [no]]]]|Numbers',
+            'expected': 'Numbers',
+            'used': [],
+        },
+        {
+            'format': 'zero [one [two [three [{yes}]]]]|Numbers',
+            'expected': 'zero one two three True',
+            'used': ['yes'],
+        },
+        {
+            'format': 'zero [one [two [three [{no}]]]]|Numbers',
+            'expected': 'Numbers',
+            'used': [],
+        },
+        # commands
+        {
+            'format': '{missing}|\?show Anon',
+            'expected': 'Anon',
+            'used': [],
+        },
+        {
+            'format': '[\?if=yes Hello]',
+            'expected': 'Hello',
+            'used': [],
+        },
+        {
+            'format': '[\?if=no Hello]',
+            'expected': '',
+            'used': [],
+        },
+        {
+            'format': '[\?if=yes Hello[ {name}]]',
+            'expected': 'Hello Björk',
+            'used': ['name'],
+        },
+        {
+            'format': '[\?if=no Hello[ {name}]]',
+            'expected': '',
+            'used': [],
+        },
+        # Composites
+        {
+            'format': '{empty}',
+            'expected': [],
+            'composite': True,
+            'used': [],
+        },
+        {
+            'format': '{simple}',
+            'expected': [{'full_text': 'NY 12:34'}],
+            'composite': True,
+            'used': ['simple'],
+        },
+        {
+            'format': '{complex}',
+            'expected': [{'full_text': 'LA 09:34'}, {'full_text': 'NY 12:34'}],
+            'composite': True,
+            'used': ['complex'],
+        },
+        {
+            'format': 'TEST [{simple}]',
+            'expected': [{'full_text': u'TEST '}, {'full_text': 'NY 12:34'}],
+            'composite': True,
+            'used': ['simple'],
+        },
     ]
 
     passed = 0
@@ -600,14 +736,30 @@ if __name__ == '__main__':
             continue
         try:
             if test.get('composite'):
-                result = f.format(
-                    test['format'],
-                    module,
-                    param_dict,
-                    composites,
-                )
+                if 'used' in test:
+                    result, parameters_used = f.format(
+                        test['format'],
+                        module,
+                        param_dict,
+                        composites,
+                        True,
+                    )
+                else:
+                    result = f.format(
+                        test['format'],
+                        module,
+                        param_dict,
+                        composites,
+                    )
+                    parameters_used = None
             else:
-                result = f.format(test['format'], module, param_dict)
+                if 'used' in test:
+                    result, parameters_used = f.format(
+                        test['format'], module, param_dict, return_used=True
+                    )
+                else:
+                    result = f.format(test['format'], module, param_dict)
+                    parameters_used = None
         except Exception as e:
             if test.get('exception') == str(e):
                 passed += 1
@@ -618,14 +770,21 @@ if __name__ == '__main__':
                 print('')
                 failed += 1
         expected = test.get('expected')
+        expected_params = test.get('used')
         if f.python2 and isinstance(expected, str):
             expected = expected.decode('utf-8')
-        if result == expected:
+        if result == expected and parameters_used == expected_params:
             passed += 1
         else:
             print('Fail %r' % test['format'])
-            print('expected %r' % expected)
-            print('got      %r' % result)
+            if result != expected:
+                print('Result')
+                print('expected %r' % expected)
+                print('got      %r' % result)
+            if parameters_used != expected_params:
+                print('Parameters')
+                print('expected %r' % expected_params)
+                print('got      %r' % parameters_used)
             print('')
             failed += 1
 
