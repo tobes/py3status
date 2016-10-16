@@ -37,16 +37,45 @@ CONFIG_SPECIAL_SECTIONS = [
     'py3_modules',
 ]
 
+JOB_TIMEOUT = 0.1
+
 from threading import Thread
 
 class Job(Thread):
 
-    def __init__(self, module):
+    def __init__(self, module_queue, log, name):
         Thread.__init__(self)
-        self.module = module
+        self.module_queue = module_queue
+        self.log = log
+        self.name = name
+        self.get_task()
+
+    def get_task(self):
+        try:
+            self.task = self.module_queue.popleft()
+        except IndexError:
+            self.task = None
 
     def run(self):
-        self.module.action()
+        while True:
+            if self.task:
+                now, module = self.task
+            else:
+                if self.name != 'main':
+                    self.log('job %s dying' % self.name)
+                    break
+                time.sleep(JOB_TIMEOUT)
+                self.get_task()
+                #self.log('main sleep')
+                continue
+            start_time = time.time()
+            _latency = start_time - now
+            module.action()
+            #time.sleep(5)
+            _time = time.time() - start_time
+            self.log('%s module %s %s %s' % (self.name, module.module_full_name, _time, _latency))
+            self.get_task()
+        # print('******')
 
 
 class CacheQueue:
@@ -57,6 +86,13 @@ class CacheQueue:
         self.timeout_queue = {}
         self.timeout_queue_members = []
         self.input_queue = deque()
+        self.module_queue = deque()
+        self.job_count = 0
+
+      #  self.log(module)
+        job = Job(self.module_queue, self.log, 'main')
+        job.daemon = True
+        job.start()
 
     def add(self, module_name, cache_time):
         self.input_queue.append((module_name, cache_time))
@@ -64,6 +100,15 @@ class CacheQueue:
     def process(self):
         self.process_input_queue()
         self.process_timeout_queue()
+        try:
+            while time.time() - self.module_queue[0][0] > JOB_TIMEOUT * 2:
+                self.log('~~ Start new job %s' % self.job_count)
+                job = Job(self.module_queue, self.log, self.job_count)
+                self.job_count += 1
+                job.daemon = True
+                job.start()
+        except IndexError:
+            pass
 
     def timeout_queue_remove(self, module_name):
         found = False
@@ -91,7 +136,7 @@ class CacheQueue:
     def process_timeout_queue(self):
         now = time.time()
         modules_to_update = []
-        self.log(self.timeout_queue.keys())
+        #self.log(self.timeout_queue.keys())
         for timeout in sorted(self.timeout_queue.keys()):
             if timeout > now:
                 break
@@ -100,13 +145,16 @@ class CacheQueue:
             modules_to_update.extend(modules)
             for module in modules:
                 self.timeout_queue_members.remove(module)
-                self.update_module(module)
+                self.update_module(module, now)
 
-    def update_module(self, module):
-      #  self.log(module)
-        job = Job(self.modules[module])
-          #  job.daemon = True
-        job.start()
+    def update_module(self, module, now):
+        modules = [m[1] for m in self.module_queue]
+        self.log(modules, module)
+        if module in modules:
+            self.log('exists %s' % module)
+            return
+        self.log('# update %s' % module)
+        self.module_queue.append((now, self.modules[module]))
 
 
 class Py3statusWrapper():
