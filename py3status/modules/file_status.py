@@ -3,10 +3,10 @@
 Display if a file or dir exists.
 
 Configuration parameters:
-    cache_timeout: how often to run the check
-    format_available: what to display when available
-    format_unavailable: what to display when unavailable
-    path: the path to a file or dir to check if it exists
+    cache_timeout: how often to run the check (default 10)
+    format_available: what to display when available (default '●')
+    format_unavailable: what to display when unavailable (default '■')
+    path: the path to a file or dir to check if it exists (default None)
 
 Color options:
     color_bad: Error or file/directory does not exist
@@ -15,7 +15,6 @@ Color options:
 @author obb, Moritz Lüdecke
 """
 
-from time import time
 import os
 import subprocess
 
@@ -50,7 +49,7 @@ class Py3status:
             (color, text) = self._get_text()
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': text,
             'color': color
         }

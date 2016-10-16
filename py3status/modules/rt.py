@@ -12,7 +12,7 @@ Configuration parameters:
     threshold_warning: set degraded color above this threshold
     user: login user
 
-Format of status string placeholders:
+Format placeholders:
     {YOUR_QUEUE_NAME} number of ongoing RT tickets (open+new+stalled)
 
 Color options:
@@ -34,7 +34,6 @@ try:
     import pymysql as mysql
 except:
     import MySQLdb as mysql
-from time import time
 
 
 class Py3status:
@@ -85,13 +84,13 @@ class Py3status:
                       'color' not in response):
                     response.update({'color': self.py3.COLOR_DEGRADED})
         if has_one_queue_formatted:
-            response['full_text'] = self.format.format(**tickets)
+            response['full_text'] = self.py3.safe_format(self.format, tickets)
         else:
             response['full_text'] = 'queue(s) not found ({})'.format(
                 self.format)
         mydb.close()
 
-        response['cached_until'] = time() + self.cache_timeout
+        response['cached_until'] = self.py3.time_in(self.cache_timeout)
         return response
 
 

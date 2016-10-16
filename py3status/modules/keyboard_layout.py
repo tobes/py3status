@@ -3,12 +3,13 @@
 Display the current active keyboard layout.
 
 Configuration parameters:
-    cache_timeout: check for keyboard layout change every seconds
+    cache_timeout: check for keyboard layout change every seconds (default 10)
     colors: a comma separated string of color values for each layout,
         eg: "us=#FCE94F, fr=#729FCF". (deprecated use color options)
-    format: see placeholders below
+         (default None)
+    format: see placeholders below (default '{layout}')
 
-Format of status string placeholders:
+Format placeholders:
     {layout} currently active keyboard layout
 
 Color options:
@@ -25,7 +26,6 @@ Requires:
 """
 
 from subprocess import check_output
-from time import time
 import re
 
 
@@ -57,7 +57,7 @@ class Py3status:
 
     def keyboard_layout(self):
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': ''
         }
         if self.colors and not self.colors_dict:
@@ -76,7 +76,7 @@ class Py3status:
         if lang_color:
             response['color'] = lang_color
 
-        response['full_text'] = self.format.format(layout=lang)
+        response['full_text'] = self.py3.safe_format(self.format, {'layout': lang})
         return response
 
     def _get_layouts(self):

@@ -2,6 +2,9 @@
 """
 Display the current "artist - title" playing in Clementine.
 
+Configuration parameters:
+    cache_timeout: how often we refresh this module in seconds (default 5)
+
 Requires:
     clementine:
 
@@ -9,7 +12,6 @@ Requires:
 @license GNU GPL http://www.gnu.org/licenses/gpl.html
 """
 
-from time import time
 from subprocess import check_output
 
 CMD = 'qdbus org.mpris.clementine /TrackList org.freedesktop.MediaPlayer'
@@ -68,7 +70,7 @@ class Py3status:
         """
         response = {'full_text': ''}
 
-        response['cached_until'] = time() + self.cache_timeout
+        response['cached_until'] = self.py3.time_in(self.cache_timeout)
         response['full_text'] = self._getMetadatas()
 
         return response

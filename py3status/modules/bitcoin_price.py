@@ -5,16 +5,19 @@ Display bitcoin prices using bitcoincharts.com.
 
 Configuration parameters:
     cache_timeout: Should be at least 15 min according to bitcoincharts.
+        (default 900)
     color_index: Index of the market responsible for coloration,
         -1 means no coloration, except when only one market is selected
         (default -1)
     field: Field that is displayed per market,
-        see http://bitcoincharts.com/about/markets-api/
+        see http://bitcoincharts.com/about/markets-api/ (default 'close')
     hide_on_error: Display empty response if True, else an error message
+         (default False)
     markets: Comma-separated list of markets. Supported markets can
         be found at http://bitcoincharts.com/markets/list/
+         (default 'btceUSD, btcdeEUR')
     symbols: Try to match currency abbreviations to symbols,
-        e.g. USD -> $, EUR -> € and so on
+        e.g. USD -> $, EUR -> € and so on (default True)
 
 Color options:
     color_bad:  Price has dropped or not available
@@ -24,7 +27,6 @@ Color options:
 """
 import json
 
-from time import time
 try:
     # python 3
     from urllib.error import URLError
@@ -73,7 +75,7 @@ class Py3status:
 
     def get_rate(self):
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': ''
         }
 

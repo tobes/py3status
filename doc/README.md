@@ -7,6 +7,7 @@ py3status documentation
 * [Available modules](#available_modules)
 * [Ordering modules](#ordering_modules)
 * [Configuring modules](#configuring_modules)
+* [Configuration obfuscation](#obfuscation)
 * [Configuring colors](#configuring_color)
 * [Grouping modules](#group_modules)
 
@@ -83,13 +84,53 @@ imap {
     cache_timeout = 60
     imap_server = 'imap.myprovider.com'
     mailbox = 'INBOX'
-    name = 'Mail'
     password = 'coconut'
     port = '993'
     user = 'mylogin'
     on_click 1 = "exec thunderbird"
 }
 ```
+
+#### <a name="obfuscation"></a>Configuration obfuscation
+
+__New in version 3.1__
+
+Py3status allows you to hide individual configuration parameters so that they
+do not leak into log files, user notifications or to the i3bar. Additionally
+they allow you to obfuscate configuration parameters using base64 encoding.
+
+To do this you need to add an obfuscation option to the configuration
+parameter. Obfuscation options are added by adding `:hide` or `:base64` to the
+name of the parameters.
+__Obfuscation is only available for string parameters.__
+
+Example:
+
+```
+# normal_parameter will be shown in log files etc as 'some value'
+# obfuscated_parameter will be shown in log files etc as '***'
+module {
+    normal_parameter = 'some value'
+    obfuscated_parameter:hide = 'some value'
+}
+```
+
+In the previous example configuration the users password is in plain text.
+Users may want to make it less easy to read. Py3status allows strings to be
+base64 encoded.
+
+To use an encoded string add `:base64` to the name of the parameter.
+
+```
+# Example of obfuscated configuration
+imap {
+    imap_server = 'imap.myprovider.com'
+    password:base64 = 'Y29jb251dA=='
+    user = 'mylogin'
+}
+```
+
+__Base64 encoding is very simple and should not be considered secure in any way.__
 
 #### <a name="configuring_color"></a>Configuring colors
 
@@ -143,6 +184,77 @@ order += "group tz"
 group tz {
     cycle = 10
     format = "{output}"
+
+    tztime la {
+        format = "LA %H:%M"
+        timezone = "America/Los_Angeles"
+    }
+
+    tztime ny {
+        format = "NY %H:%M"
+        timezone = "America/New_York"
+    }
+
+    tztime du {
+        format = "DU %H:%M"
+        timezone = "Asia/Dubai"
+    }
+}
+```
+
+The [frame](
+https://github.com/ultrabug/py3status/blob/master/py3status/modules/README.md#frame
+)
+module also allows you to group several modules together, however in a frame
+all the modules are shown.  This allows you to have more than one module shown
+in a group.
+Example usage:
+```
+order += "group frames"
+
+# group showing disk space or times using button to change what is shown.
+group frames {
+    click_mode = "button"
+
+    frame time {
+        tztime la {
+            format = "LA %H:%M"
+            timezone = "America/Los_Angeles"
+        }
+
+        tztime ny {
+            format = "NY %H:%M"
+            timezone = "America/New_York"
+        }
+
+        tztime du {
+            format = "DU %H:%M"
+            timezone = "Asia/Dubai"
+        }
+    }
+
+    frame disks {
+        disk "/" {
+            format = "/ %avail"
+        }
+
+        disk "/home" {
+            format = "/home %avail"
+        }
+    }
+}
+```
+
+Frames can also have a toggle button to hide/show the content
+
+Example:
+```
+# A frame showing times in different cities.
+# We also have a button to hide/show the content
+
+frame time {
+    format = '{output}{button}'
+    format_separator = ' '  # have space instead of usual i3bar separator
 
     tztime la {
         format = "LA %H:%M"
@@ -323,6 +435,8 @@ our example our response will not need to be updated so we can use the special
 `self.py3.CACHE_FOREVER` constant. This tells py3status to consider our
 response always valid.
 
+`cached_until` should be generated via the `self.py3.time_in()` method.
+
 ####self.py3
 
 This is a special object that gets injected into py3status
@@ -435,7 +549,7 @@ Configuration parameters:
     format_clicked: Display format to use when we are clicked
         (default 'You pressed button {button}')
 
-Format status string parameters:
+Format placeholders:
     {button} The button that was pressed
 """
 
@@ -497,7 +611,7 @@ Configuration parameters:
     format: Initial format to use
         (default 'Number {number}')
 
-Format status string parameters:
+Format placeholders:
     {number} Our random number
 
 Color options:
@@ -571,11 +685,15 @@ The response can include the folowing keys
 __cached_until__
 
 The time (in seconds since the epoch) that the output will be classed as no longer valid and the output
-function will be called again.  If no `cached_until` value is provided the the
+function will be called again.
+
+Since version 3.1, if no `cached_until` value is provided the the
 output will be cached for `cache_timeout` seconds by default this is
 `60` and can be set using the `-t` or `--timeout` option when running
 py3status.  To never expire the `self.py3.CACHE_FOREVER` constant should be
 used.
+
+`cached_until` should be generated via the `self.py3.time_in()` method.
 
 __color__
 
@@ -665,6 +783,15 @@ __is_python_2()__
 True if the version of python being used is 2.x
 Can be helpful for fixing python 2 compatability issues
 
+__is_my_event(event)__
+
+Checks if an event triggered belongs to the module recieving it.  This
+is mainly for containers who will also recieve events from any children
+they have.
+
+Returns True if the event name and instance match that of the module
+checking.
+
 __get_output(module_name)__
 
 Return the output of the named module. This will be a list.
@@ -686,11 +813,51 @@ Calling this function during the on_click() method of a module will
 request that the module is not refreshed after the event. By default
 the module is updated after the on_click event has been processed.
 
-__time_in(seconds=0)__
+__time_in(seconds=None, sync_to=None, offset=0)__
 
-Returns the time a given number of seconds into the future.
-Helpful for creating the `cached_until` value for the module
-output.
+Returns the time a given number of seconds into the future.  Helpful
+for creating the `cached_until` value for the module output.
+
+Note: form version 3.1 modules no longer need to explicitly set a
+`cached_until` in their response unless they wish to directly control it.
+
+seconds specifies the number of seconds that should occure before the
+update is required.
+
+sync_to causes the update to be syncronised to a time period.  1 would
+cause the update on the second, 60 to the nearest minute. By defalt we
+syncronise to the nearest second. 0 will disable this feature.
+
+offset is used to alter the base time used. A timer that started at a
+certain time could set that as the offset and any syncronisation would
+then be relative to that time.
+
+__register_function(function_name, function)__
+
+Register a function for the module.
+
+The following functions can be registered
+
+> __content_function()__
+>
+> Called to discover what modules a container is displaying.  This is
+> used to determine when updates need passing on to the container and
+> also when modules can be put to sleep.
+>
+> the function must return a set of module names that are being
+> displayed.
+>
+> Note: This function should only be used by containers.
+>
+> __urgent_function(module_names)__
+>
+> This function will be called when one of the contents of a container
+> has changed from a non-urgent to an urgent state.  It is used by the
+> group module to switch to displaying the urgent module.
+>
+> `module_names` is a list of modules that have become urgent
+>
+> Note: This function should only be used by containers.
 
 __safe_format(format_string, param_dict=None)__
 
@@ -809,8 +976,8 @@ The docsting of a module is used.  The format is as follows:
   parameters for the module.  All parameters should be listed (in alphabetical
   order). default values should be given in parentheses eg `(default 7)`.
 
-- Format status string parameters.  These are used for substituting values in
-  format strings. All parameters should be listed (in alphabetical
+- Format placeholders.  These are used for substituting values in
+  format strings. All placeholders should be listed (in alphabetical
   order) and describe the output that they provide.
 
 - Color options.  These are the color options that can be provided for this
@@ -839,8 +1006,8 @@ Here is an example of a docstring.
             onto a second line so it is indented.
             (default <value>)
 
-    Format status string parameters:
-        {info} Description of the parameter
+    Format placeholders:
+        {info} Description of the placeholder
 
     Color options:
         color_meaning: what this signifies, defaults to color_good

@@ -3,11 +3,15 @@
 Display system RAM and CPU utilization.
 
 Configuration parameters:
+    cache_timeout: how often we refresh this module in seconds (default 10)
     format: output format string
+        (default 'CPU: {cpu_usage}%, Mem: {mem_used}/{mem_total} GB ({mem_used_percent}%)')
     high_threshold: percent to consider CPU or RAM usage as 'high load'
+        (default 75)
     med_threshold: percent to consider CPU or RAM usage as 'medium load'
+        (default 40)
 
-Format of status string placeholders:
+Format placeholders:
     {cpu_temp} cpu temperature
     {cpu_usage} cpu usage percentage
     {mem_total} total memory
@@ -29,7 +33,6 @@ from __future__ import division
 
 import re
 import subprocess
-from time import time
 
 
 class GetData:
@@ -145,13 +148,16 @@ class Py3status:
         mem_total, mem_used, mem_used_percent = self.data.memory()
 
         response = {
-            'cached_until': time() + self.cache_timeout,
-            'full_text': self.format.format(
-                cpu_usage='%.2f' % (cpu_usage),
-                cpu_temp=cpu_temp,
-                mem_used='%.2f' % mem_used,
-                mem_total='%.2f' % mem_total,
-                mem_used_percent='%.2f' % mem_used_percent,
+            'cached_until': self.py3.time_in(self.cache_timeout),
+            'full_text': self.py3.safe_format(
+                self.format,
+                dict(
+                    cpu_usage='%.2f' % (cpu_usage),
+                    cpu_temp=cpu_temp,
+                    mem_used='%.2f' % mem_used,
+                    mem_total='%.2f' % mem_total,
+                    mem_used_percent='%.2f' % mem_used_percent,
+                )
             )
         }
 

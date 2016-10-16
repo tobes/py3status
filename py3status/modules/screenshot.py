@@ -10,13 +10,16 @@ By default, this modules uses the 'gnome-screenshot' program to take the screens
 but this can be configured with the `screenshot_command` configuration parameter.
 
 Configuration parameters:
-    file_length: generated file_name length
+    cache_timeout: how often to update in seconds (default 5)
+    file_length: generated file_name length (default 4)
     push: True/False if yo want to push your screenshot to your server
-    save_path: Directory where to store your screenshots.
+        (default True)
+    save_path: Directory where to store your screenshots. (default '~/Pictures/')
     screenshot_command: the command used to generate the screenshot
-    upload_path: the remote path where to push the screenshot
-    upload_server: your server address
-    upload_user: your ssh user
+        (default 'gnome-screenshot -f')
+    upload_path: the remote path where to push the screenshot (default '/files')
+    upload_server: your server address (default 'puzzledge.org')
+    upload_user: your ssh user (default 'erol')
 
 Color options:
     color_good: Displayed color
@@ -27,7 +30,6 @@ import os
 import random
 import string
 import subprocess
-import time
 
 
 class Py3status:
@@ -74,7 +76,7 @@ class Py3status:
             self.full_text = 'SHOT'
 
         response = {
-            'cached_until': time.time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'color': self.py3.COLOR_GOOD,
             'full_text': self.full_text
         }

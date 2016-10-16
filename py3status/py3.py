@@ -99,6 +99,23 @@ class Py3:
         """
         return self._is_python_2
 
+    def is_my_event(self, event):
+        """
+        Checks if an event triggered belongs to the module recieving it.  This
+        is mainly for containers who will also recieve events from any children
+        they have.
+
+        Returns True if the event name and instance match that of the module
+        checking.
+        """
+        if not self._module:
+            return False
+
+        return (
+            event.get('name') == self._module.module_name and
+            event.get('instance') == self._module.module_inst
+        )
+
     def log(self, message, level=LOG_INFO):
         """
         Log the message.
@@ -167,27 +184,85 @@ class Py3:
             self._module._py3_wrapper.notify_user(
                 msg, level=level, rate_limit=rate_limit, module_name=module_name)
 
-    def register_content_function(self, content_function):
+    def register_function(self, function_name, function):
         """
-        Register a function that can be called to discover what modules a
-        container is displaying.  This is used to determine when updates need
-        passing on to the container and also when modules can be put to sleep.
+        Register a function for the module.
 
-        the function must return a set of module names that are being
-        displayed.
+        The following functions can be registered
 
-        Note: This function should only be used by containers.
+        > __content_function()__
+        >
+        > Called to discover what modules a container is displaying.  This is
+        > used to determine when updates need passing on to the container and
+        > also when modules can be put to sleep.
+        >
+        > the function must return a set of module names that are being
+        > displayed.
+        >
+        > Note: This function should only be used by containers.
+        >
+        > __urgent_function(module_names)__
+        >
+        > This function will be called when one of the contents of a container
+        > has changed from a non-urgent to an urgent state.  It is used by the
+        > group module to switch to displaying the urgent module.
+        >
+        > `module_names` is a list of modules that have become urgent
+        >
+        > Note: This function should only be used by containers.
         """
         if self._module:
             my_info = self._get_module_info(self._module.module_full_name)
-            my_info['content_function'] = content_function
+            my_info[function_name] = function
 
-    def time_in(self, seconds=0):
+    def time_in(self, seconds=None, sync_to=None, offset=0):
         """
         Returns the time a given number of seconds into the future.  Helpful
         for creating the `cached_until` value for the module output.
+
+        Note: form version 3.1 modules no longer need to explicitly set a
+        `cached_until` in their response unless they wish to directly control
+        it.
+
+        seconds specifies the number of seconds that should occure before the
+        update is required.
+
+        sync_to causes the update to be syncronised to a time period.  1 would
+        cause the update on the second, 60 to the nearest minute. By defalt we
+        syncronise to the nearest second. 0 will disable this feature.
+
+        offset is used to alter the base time used. A timer that started at a
+        certain time could set that as the offset and any syncronisation would
+        then be relative to that time.
         """
-        return time() + seconds
+
+        if seconds is None:
+            # If we have a sync_to then seconds can be 0
+            if sync_to and sync_to > 0:
+                seconds = 0
+            else:
+                try:
+                    # use py3status modules cache_timeout
+                    seconds = self._py3status_module.cache_timeout
+                except AttributeError:
+                    # use default cache_timeout
+                    seconds = self._module.config['cache_timeout']
+
+        # Unless explicitly set we sync to the nearest second
+        # Unless the requested update is in less than a second
+        if sync_to is None:
+            if seconds and seconds < 1:
+                sync_to = 0
+            else:
+                sync_to = 1
+
+        requested = time() + seconds - offset
+
+        # if sync_to then we find the sync time for the requested time
+        if sync_to:
+            requested = (requested + sync_to) - (requested % sync_to)
+
+        return requested + offset
 
     def safe_format(self, format_string, param_dict=None):
         """
@@ -222,7 +297,7 @@ class Py3:
         try:
             return self._formatter.format(
                 format_string,
-                self._module,
+                self._py3status_module,
                 param_dict
             )
         except Exception:
@@ -240,7 +315,7 @@ class Py3:
         try:
             return self._formatter.format(
                 format_string,
-                self._module,
+                self._py3status_module,
                 param_dict,
                 composites,
             )

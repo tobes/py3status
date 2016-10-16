@@ -2,12 +2,15 @@
 """
 Display the currently logged in user.
 
+Configuration parameters:
+    cache_timeout: how often we refresh this module in seconds
+        (default 1800)
+
 Inspired by i3 FAQ:
         https://faq.i3wm.org/question/1618/add-user-name-to-status-bar/
 """
 
 from getpass import getuser
-from time import time
 
 
 class Py3status:
@@ -25,7 +28,7 @@ class Py3status:
         username = '{}'.format(getuser())
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': username
         }
         return response

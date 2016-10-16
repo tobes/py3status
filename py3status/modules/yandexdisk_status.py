@@ -8,7 +8,7 @@ Configuration parameters:
     format: prefix text for the Yandex.Disk status
         (default 'Yandex.Disk: {status}')
 
-Format of status string placeholders:
+Format placeholders:
     {status} daemon status
 
 Color options:
@@ -25,7 +25,6 @@ Requires:
 
 import shlex
 import subprocess
-from time import time
 
 
 class Py3status:
@@ -36,7 +35,7 @@ class Py3status:
     format = 'Yandex.Disk: {status}'
 
     def yadisk(self):
-        response = {'cached_until': time() + self.cache_timeout}
+        response = {'cached_until': self.py3.time_in(self.cache_timeout)}
 
         raw_lines = b''
         try:
@@ -58,7 +57,7 @@ class Py3status:
             status = 'Busy'
             response['color'] = self.py3.COLOR_DEGRADED
 
-        full_text = self.format.format(status=status)
+        full_text = self.py3.safe_format(self.format, {'status': status})
         response['full_text'] = full_text
         return response
 

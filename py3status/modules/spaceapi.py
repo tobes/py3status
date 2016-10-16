@@ -3,14 +3,17 @@
 """
 Display if your favorite hackerspace is open or not.
 
-Configuration Parameters:
-    cache_timeout: Set timeout between calls in seconds
-    closed_color: color if space is closed
+Configuration parameters:
+    cache_timeout: Set timeout between calls in seconds (default 60)
+    closed_color: color if space is closed (default None)
     closed_text: text if space is closed, strftime parameters
-        will be translated
-    open_color: color if space is open
+        will be translated (default 'closed')
+    open_color: color if space is open (default None)
     open_text: text if space is open, strftime parmeters will be translated
+        (default 'open')
+    time_text: format used for time display (default ' since %H:%M')
     url: URL to SpaceAPI json file of your space
+        (default 'http://status.chaospott.de/status.json')
 
 @author timmszigat
 @license WTFPL <http://www.wtfpl.net/txt/copying/>
@@ -19,7 +22,6 @@ Configuration Parameters:
 import codecs
 import datetime
 import json
-from time import time
 import urllib.request
 
 
@@ -38,7 +40,7 @@ class Py3status:
     def check(self):
 
         response = {
-            'cached_until': time() + self.cache_timeout
+            'cached_until': self.py3.time_in(self.cache_timeout),
             }
 
         try:

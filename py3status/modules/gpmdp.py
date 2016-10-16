@@ -5,12 +5,10 @@ Display currently playing song from Google Play Music Desktop Player.
 Configuration parameters:
     cache_timeout:  how often we refresh this module in seconds (default 5)
     format:         specify the items and ordering of the data in the status bar.
-                    These area 1:1 match to gpmdp-remote's options (default is '♫ {info}').
+                    These area 1:1 match to gpmdp-remote's options
+                    (default '♫ {info}')
 
-Format of status string placeholders:
-    See `gpmdp-remote help`. Simply surround the items you want displayed (i.e. `album`)
-    with curly braces (i.e. `{album}`) and place as-desired in the format string.
-
+Format placeholders:
     {info}            Print info about now playing song
     {title}           Print current song title
     {artist}          Print current song artist
@@ -31,7 +29,6 @@ Requires:
 @license BSD
 """
 
-from time import time
 from subprocess import check_output
 
 
@@ -57,10 +54,10 @@ class Py3status:
                 if '{%s}' % cmd in self.format:
                     data[cmd] = self._run_cmd(cmd)
 
-            result = self.format.format(**data)
+            result = self.py3.safe_format(self.format, data)
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': result
         }
         return response

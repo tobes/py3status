@@ -4,11 +4,11 @@ Display the X selection.
 
 Configuration parameters:
     cache_timeout: how often we refresh this module in seconds
-        (default is at every py3status configured interval)
+        (default 0.5)
     command: the xsel command to run (default 'xsel')
     max_size: stip the selection to this value (default 15)
     symmetric: show the beginning and the end of the selection string
-        with respect to configured max_size.
+        with respect to configured max_size. (default True)
 
 Requires:
     xsel: command line tool
@@ -19,7 +19,6 @@ Requires:
 
 import shlex
 
-from time import time
 from subprocess import check_output
 
 
@@ -31,7 +30,6 @@ class Py3status:
     command = 'xsel'
     max_size = 15
     symmetric = True
-    color = "#0066FF"
 
     def xsel(self):
         """
@@ -46,9 +44,8 @@ class Py3status:
             else:
                 current_value = current_value[:self.max_size]
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': current_value,
-            'color': self.color
         }
         return response
 

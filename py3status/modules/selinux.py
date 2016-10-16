@@ -6,10 +6,10 @@ This module displays the current state of selinux on your machine: Enforcing
 (good), Permissive (bad), or Disabled (bad).
 
 Configuration parameters:
-    cache_timeout: how often we refresh this module in seconds (10s default)
-    format: see placeholders below, default is 'selinux: {state}'
+    cache_timeout: how often we refresh this module in seconds (default 10)
+    format: see placeholders below, (default 'selinux: {state}')
 
-Format of status string placeholders:
+Format placeholders:
     {state} the current selinux state
 
 Color options:
@@ -27,7 +27,6 @@ Requires:
 """
 
 import selinux
-from time import time
 
 
 class Py3status:
@@ -50,8 +49,8 @@ class Py3status:
             color = self.py3.COLOR_BAD
 
         response = {
-            'cached_until': time() + self.cache_timeout,
-            'full_text': self.format.format(state=selinuxstring),
+            'cached_until': self.py3.time_in(self.cache_timeout),
+            'full_text': self.py3.safe_format(self.format, {'state': selinuxstring}),
             'color': color,
         }
 

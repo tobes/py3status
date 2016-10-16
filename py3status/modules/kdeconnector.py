@@ -5,23 +5,27 @@ Display information of your android device over KDEConnector.
 Configuration parameters:
     cache_timeout: how often we refresh this module in seconds (default 30)
     device: the device name, you need this if you have more than one device
-            connected to your PC
+            connected to your PC (default None)
     device_id: alternatively to the device name you can set your device id here
+        (default None)
     format: see placeholders below
+        (default '{name}{notif_status} {bat_status} {charge}%')
     format_disconnected: text if device is disconnected
+        (default 'device disconnected')
     low_threshold: percentage value when text is twitch to color_bad
-    status_bat: text when battery is discharged
-    status_chr: text when device is charged
-    status_full: text when battery is full
-    status_no_notif: text when you have no notifications
-    status_notif: text when notifications are available
+        (default 20)
+    status_bat: text when battery is discharged (default '⬇')
+    status_chr: text when device is charged (default '⬆')
+    status_full: text when battery is full (default '☻')
+    status_no_notif: text when you have no notifications (default '')
+    status_notif: text when notifications are available (default ' ✉')
 
-Format of status string placeholders:
+Format placeholders:
     {bat_status} battery state
     {charge} the battery charge
     {name} name of the device
     {notif_size} number of notifications
-    {notif_status} shows if a notification is available or nor
+    {notif_status} shows if a notification is available or not
 
 Color options:
     color_bad: Device unknown, unavailable
@@ -47,7 +51,6 @@ Requires:
 """
 
 from pydbus import SessionBus
-from time import time
 
 
 SERVICE_BUS = 'org.kde.kdeconnect'
@@ -116,6 +119,20 @@ class Py3status:
 
         return None
 
+    def _get_isTrusted(self):
+        if self._dev is None:
+            return False
+
+        try:
+            # New method which replaced 'isPaired' in version 1.0
+            return self._dev.isTrusted()
+        except AttributeError:
+            try:
+                # Deprecated since version 1.0
+                return self._dev.isPaired()
+            except AttributeError:
+                return False
+
     def _get_device(self):
         """
         Get the device
@@ -124,7 +141,7 @@ class Py3status:
             device = {
                 'name': self._dev.name,
                 'isReachable': self._dev.isReachable,
-                'isPaired': self._dev.isPaired,
+                'isTrusted': self._get_isTrusted(),
             }
         except Exception:
             return None
@@ -184,7 +201,10 @@ class Py3status:
         """
         Get the notifications status
         """
-        size = len(notifications['activeNotifications'])
+        if notifications:
+            size = len(notifications['activeNotifications'])
+        else:
+            size = 0
         status = self.status_notif if size > 0 else self.status_no_notif
 
         return (size, status)
@@ -197,8 +217,9 @@ class Py3status:
         if device is None:
             return (UNKNOWN_DEVICE, self.py3.COLOR_BAD)
 
-        if not device['isReachable'] or not device['isPaired']:
-            return (self.format_disconnected.format(name=device['name']),
+        if not device['isReachable'] or not device['isTrusted']:
+            return (self.py3.safe_format(self.format_disconnected,
+                                         {'name': device['name']}),
                     self.py3.COLOR_BAD)
 
         battery = self._get_battery()
@@ -207,11 +228,13 @@ class Py3status:
         notif = self._get_notifications()
         (notif_size, notif_status) = self._get_notifications_status(notif)
 
-        return (self.format.format(name=device['name'],
-                                   charge=charge,
-                                   bat_status=bat_status,
-                                   notif_size=notif_size,
-                                   notif_status=notif_status), color)
+        return (self.py3.safe_format(self.format,
+                                     dict(name=device['name'],
+                                          charge=charge,
+                                          bat_status=bat_status,
+                                          notif_size=notif_size,
+                                          notif_status=notif_status)),
+                color)
 
     def kdeconnector(self):
         """
@@ -224,7 +247,7 @@ class Py3status:
             color = self.py3.COLOR_BAD
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': text,
             'color': color
         }

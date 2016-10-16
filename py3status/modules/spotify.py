@@ -3,12 +3,14 @@
 Display information about the current song playing on Spotify.
 
 Configuration parameters:
-    cache_timeout: how often to update the bar
-    format: see placeholders below
+    cache_timeout: how often to update the bar (default 5)
+    format: see placeholders below (default '{artist} : {title}')
     format_down: define output if spotify is not running
+        (default 'Spotify not running')
     format_stopped: define output if spotify is not playing
+        (default 'Spotify stopped')
 
-Format of status string placeholders:
+Format placeholders:
     {album} album name
     {artist} artiste name (first one)
     {time} time duration of the song
@@ -35,7 +37,6 @@ Requires:
 """
 
 from datetime import timedelta
-from time import time
 import dbus
 
 
@@ -80,10 +81,13 @@ class Py3status:
                     self.py3.COLOR_PAUSED or self.py3.COLOR_DEGRADED)
 
             return (
-                self.format.format(title=title,
-                                   artist=artist,
-                                   album=album,
-                                   time=rtime), color)
+                self.py3.safe_format(
+                    self.format,
+                    dict(title=title,
+                         artist=artist,
+                         album=album,
+                         time=rtime)
+                ), color)
         except Exception:
             return (
                 self.format_down,
@@ -95,7 +99,7 @@ class Py3status:
         """
         (text, color) = self._get_text()
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': text,
             'color': color
         }

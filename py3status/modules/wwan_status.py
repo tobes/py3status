@@ -53,7 +53,7 @@ import netifaces as ni
 import os
 import stat
 import serial
-from time import time, sleep
+from time import sleep
 
 
 class Py3status:
@@ -80,7 +80,7 @@ class Py3status:
             degraded_netgen = 2
 
         response = {}
-        response['cached_until'] = time() + self.cache_timeout
+        response['cached_until'] = self.py3.time_in(self.cache_timeout)
 
         # Check if path exists and is a character device
         if os.path.exists(self.modem) and stat.S_ISCHR(os.stat(
@@ -112,8 +112,10 @@ class Py3status:
                 # file
                 # 2) if/when you unplug the device
                 print("Permission error")
-                response['full_text'] = self.format_error.format(
-                    error="no access to " + self.modem)
+                response['full_text'] = self.py3.safe_format(
+                    self.format_error,
+                    dict(error="no access to " + self.modem)
+                )
                 response['color'] = self.py3.COLOR_BAD
                 return response
             # Dissect response
@@ -128,15 +130,16 @@ class Py3status:
                     netgen = len(modem_answer[-2]) + 1
                     netmode = modem_answer[-1].rstrip()[1:-1]
                     if netmode == "NO SERVICE":
-                        response['full_text'] = self.format_no_service.format(
-                            status=netmode,
-                            ip=ip)
+                        response['full_text'] = self.py3.safe_format(
+                            self.format_no_service,
+                            dict(status=netmode, ip=ip)
+                        )
                         response['color'] = self.py3.COLOR_BAD
                     else:
-                        response['full_text'] = self.format_up.format(
-                            status=netmode,
-                            netgen=str(netgen) + "G",
-                            ip=ip)
+                        response['full_text'] = self.py3.safe_format(
+                            self.format_up,
+                            dict(status=netmode, netgen=str(netgen) + "G", ip=ip)
+                        )
                         if netgen <= degraded_netgen:
                             response['color'] = self.py3.COLOR_DEGRADED
                         else:
@@ -144,13 +147,13 @@ class Py3status:
                 elif line.startswith("COMMAND NOT SUPPORT") or line.startswith(
                         "ERROR"):
                     response['color'] = self.py3.COLOR_BAD
-                    response['full_text'] = self.format_error.format(
-                        error="unsupported modem")
+                    response['full_text'] = self.py3.safe_format(
+                        self.format_error, {'error': "unsupported modem"}
+                    )
                 else:
                     # Outputs can be multiline, so just try the next one
                     pass
         else:
-            print(self.modem + " not found")
             response['color'] = self.py3.COLOR_BAD
             response['full_text'] = self.format_down
         return response

@@ -3,27 +3,27 @@
 Display WiFi bit rate, quality, signal and SSID using iw.
 
 Configuration parameters:
-    bitrate_bad: Bad bit rate in Mbit/s (default: 26)
-    bitrate_degraded: Degraded bit rate in Mbit/s (default: 53)
+    bitrate_bad: Bad bit rate in Mbit/s (default 26)
+    bitrate_degraded: Degraded bit rate in Mbit/s (default 53)
     blocks: a string, where each character represents quality level
-        (default: "_▁▂▃▄▅▆▇█")
-    cache_timeout: Update interval in seconds (default: 10)
-    device: Wireless device name (default: "wlan0")
+        (default "_▁▂▃▄▅▆▇█")
+    cache_timeout: Update interval in seconds (default 10)
+    device: Wireless device name (default "wlan0")
     down_color: Output color when disconnected, possible values:
-        "good", "degraded", "bad" (default: "bad")
-    format_down: Output when disconnected (default: "down")
+        "good", "degraded", "bad" (default "bad")
+    format_down: Output when disconnected (default "W: down")
     format_up: See placeholders below
-        (default: "W: {bitrate} {signal_percent} {ssid}")
+        (default "W: {bitrate} {signal_percent} {ssid}")
     round_bitrate: If true, bit rate is rounded to the nearest whole number
-        (default: true)
-    signal_bad: Bad signal strength in percent (default: 29)
-    signal_degraded: Degraded signal strength in percent (default: 49)
+        (default True)
+    signal_bad: Bad signal strength in percent (default 29)
+    signal_degraded: Degraded signal strength in percent (default 49)
     use_sudo: Use sudo to run iw, make sure iw requires no password by
         adding a sudoers entry like
         "<username> ALL=(ALL) NOPASSWD: /usr/bin/iw dev wl* link"
-        (default: false)
+        (default False)
 
-Format of status string placeholders:
+Format placeholders:
     {bitrate} Display bit rate
     {device} Display device name
     {icon} Character representing the quality based on bitrate,
@@ -49,7 +49,6 @@ Requires:
 import re
 import subprocess
 import math
-from time import time
 
 
 class Py3status:
@@ -58,7 +57,7 @@ class Py3status:
     # available configuration parameters
     bitrate_bad = 26
     bitrate_degraded = 53
-    blocks = ["_", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+    blocks = u"_▁▂▃▄▅▆▇█"
     cache_timeout = 10
     device = 'wlan0'
     down_color = 'bad'
@@ -179,16 +178,20 @@ class Py3status:
             else:
                 color = self.py3.COLOR_GOOD
 
-            full_text = self.format_up.format(bitrate=bitrate,
-                                              signal_dbm=signal_dbm,
-                                              signal_percent=signal_percent,
-                                              ip=ip,
-                                              device=self.device,
-                                              icon=icon,
-                                              ssid=ssid)
+            full_text = self.py3.safe_format(
+                self.format_up,
+                dict(
+                    bitrate=bitrate,
+                    signal_dbm=signal_dbm,
+                    signal_percent=signal_percent,
+                    ip=ip,
+                    device=self.device,
+                    icon=icon,
+                    ssid=ssid,
+                ))
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'full_text': full_text,
             'color': color
         }

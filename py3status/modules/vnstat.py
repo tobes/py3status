@@ -2,6 +2,17 @@
 """
 Display vnstat statistics.
 
+Configuration parameters:
+    cache_timeout: (default 180)
+    coloring: (default {})
+    format: (default '{total}')
+    initial_multi: (default 1024)
+    left_align: (default 0)
+    multiplier_top: (default 1024)
+    precision: (default 1)
+    statistics_type: (default 'd')
+    unit_multi: (default 1024)
+
 Coloring rules.
 
 If value is bigger that dict key, status string will turn to color, specified
@@ -14,7 +25,7 @@ Example:
         }
         (0 - 800: white, 800-900: yellow, >900 - red)
 
-Format of status string placeholders:
+Format placeholders:
     {down} download
     {total} total
     {up} upload
@@ -123,11 +134,12 @@ class Py3status:
                 color = self.coloring[k]
 
         response = {
-            'cached_until': time() + self.cache_timeout,
-            'full_text': self.format.format(
-                total=self._divide_and_format(stat['total']),
-                up=self._divide_and_format(stat['up']),
-                down=self._divide_and_format(stat['down']),
+            'cached_until': self.py3.time_in(self.cache_timeout),
+            'full_text': self.py3.safe_format(
+                self.format,
+                dict(total=self._divide_and_format(stat['total']),
+                     up=self._divide_and_format(stat['up']),
+                     down=self._divide_and_format(stat['down'])),
             ),
             'transformed': True
         }

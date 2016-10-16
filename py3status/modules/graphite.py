@@ -2,23 +2,25 @@
 """
 Display Graphite metrics.
 
-Confiuration parameters:
+Configuration parameters:
     cache_timeout: how often we refresh this module in seconds.
-        (default 10)
+        (default 120)
     datapoint_selection: when multiple data points are returned,
         use "max" or "min" to determine which one to display.
         (default "max")
     format: you MUST use placeholders here to display data, see below.
-    graphite_url: URL to your graphite server.
+        (default '')
+    graphite_url: URL to your graphite server. (default '')
     http_timeout: HTTP query timeout to graphite.
         (default 10)
     targets: semicolon separated list of targets to query graphite for.
+        (default '')
     threshold_bad: numerical threshold,
         if set will send a notification and colorize the output.
-        (default None means no notification and color)
+        (default None)
     threshold_degraded: numerical threshold,
         if set will send a notification and colorize the output.
-        (default None means no notification and color)
+        (default None)
     timespan: time range to query graphite for.
         (default "-2minutes")
     value_comparator: choose between "max" and "min" to compare thresholds
@@ -52,7 +54,6 @@ Color options:
 """
 from requests import get
 from syslog import syslog, LOG_INFO
-from time import time
 
 
 def format_value(num, value_round=True):
@@ -201,9 +202,9 @@ class Py3status:
         self._notify_user()
 
         response = {
-            'cached_until': time() + self.cache_timeout,
+            'cached_until': self.py3.time_in(self.cache_timeout),
             'color': getattr(self.py3, 'COLOR_{}'.format(color_key.upper())),
-            'full_text': self.format.format(**r_json)
+            'full_text': self.py3.safe_format(self.format, r_json)
         }
         return response
 

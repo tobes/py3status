@@ -44,6 +44,7 @@ class Module:
         self.sleeping = False
         self.timer = None
         self.triggered = True
+        self.urgent = False
 
         # py3wrapper this is private and any modules accessing their instance
         # should only use it on the understanding that it is not supported.
@@ -83,9 +84,9 @@ class Module:
         class_inst = py_mod.Py3status()
         return class_inst
 
-    def start_module(self):
+    def prepare_module(self):
         """
-        Start the module running.
+        Ready the module to get it ready to start.
         """
         # Modules can define a post_config_hook() method which will be run
         # after the module has had it config settings applied and before it has
@@ -93,6 +94,11 @@ class Module:
         # perform any necessary setup.
         if self.has_post_config_hook:
             self.module_class.post_config_hook()
+
+    def start_module(self):
+        """
+        Start the module running.
+        """
         # Start the module and call its output method(s)
         self._py3_wrapper.queue_add(self.module_full_name, 0)
 
@@ -147,8 +153,16 @@ class Module:
                 output.append(data)
         # if changed store and force display update.
         if output != self.last_output:
+            # has the modules output become urgent?
+            # we only care the update that this happens
+            # not any after then.
+            urgent = True in [x.get('urgent') for x in output]
+            if urgent != self.urgent:
+                self.urgent = urgent
+            else:
+                urgent = False
             self.last_output = output
-            self._py3_wrapper.notify_update(self.module_full_name)
+            self._py3_wrapper.notify_update(self.module_full_name, urgent)
 
     def get_latest(self):
         """
@@ -445,6 +459,9 @@ class Module:
                     else:
                         raise TypeError('response should be a dict')
 
+                    if isinstance(response.get('full_text'), list):
+                        response['composite'] = response['full_text']
+                        del response['full_text']
                     if 'composite' in response:
                         self.process_composite(response)
                     else:
@@ -472,7 +489,8 @@ class Module:
                         # remove this so we can check later for output changes
                         del result['cached_until']
                     else:
-                        cached_until = time() + self.config['cache_timeout']
+                        # get module default cached_until
+                        cached_until = self.module_class.py3.time_in()
                     my_method['cached_until'] = cached_until
                     if not cache_time or cached_until < cache_time:
                         cache_time = cached_until

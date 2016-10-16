@@ -6,13 +6,13 @@ We also verify the status of the checks and colorize if needed.
 Pingdom API doc : https://www.pingdom.com/features/api/documentation/
 
 Configuration parameters:
-    app_key: create an APP KEY on pingdom first
-    cache_timeout: how often to refresh the check from pingdom
-    checks: comma separated pindgom check names to display
-    login: pingdom login
-    max_latency: maximal latency before coloring the output
-    password: pingdom password
-    request_timeout: pindgom API request timeout
+    app_key: create an APP KEY on pingdom first (default '')
+    cache_timeout: how often to refresh the check from pingdom (default 600)
+    checks: comma separated pindgom check names to display (default '')
+    login: pingdom login (default '')
+    max_latency: maximal latency before coloring the output (default 500)
+    password: pingdom password (default '')
+    request_timeout: pindgom API request timeout (default 15)
 
 Color options:
     color_bad: Site is down
@@ -24,7 +24,6 @@ Requires:
 """
 
 import requests
-from time import time
 
 
 class Py3status:
@@ -73,7 +72,7 @@ class Py3status:
                     )
                     response.update({'color': self.py3.COLOR_BAD})
             response['full_text'] = response['full_text'].strip(', ')
-            response['cached_until'] = time() + self.cache_timeout
+            response['cached_until'] = self.py3.time_in(self.cache_timeout)
 
         return response
 

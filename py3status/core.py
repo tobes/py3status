@@ -319,7 +319,7 @@ class Py3statusWrapper():
                 continue
             try:
                 my_m = Module(module, user_modules, self)
-                # only start and handle modules with available methods
+                # only handle modules with available methods
                 if my_m.methods:
                     self.modules[module] = my_m
                 elif self.config['debug']:
@@ -522,7 +522,7 @@ class Py3statusWrapper():
         """
         raise KeyboardInterrupt()
 
-    def notify_update(self, update):
+    def notify_update(self, update, urgent=False):
         """
         Name or list of names of modules that have updated.
         """
@@ -540,6 +540,10 @@ class Py3statusWrapper():
         for container in containers_to_update:
             container_module = self.output_modules.get(container)
             if container_module:
+                # If the container registered a urgent_function then call it
+                # if this update is urgent.
+                if urgent and container_module.get('urgent_function'):
+                    container_module['urgent_function'](update)
                 # If a container has registered a content_function we use that
                 # to see if the container needs to be updated.
                 # We only need to update containers if their active content has
@@ -558,15 +562,18 @@ class Py3statusWrapper():
         if not self.config['log_file']:
             # If level was given as a str then convert to actual level
             level = LOG_LEVELS.get(level, level)
-            syslog(level, msg)
+            syslog(level, u'{}'.format(msg))
         else:
-            with open(self.config['log_file'], 'a') as f:
+            # Binary mode so fs encoding setting is not an issue
+            with open(self.config['log_file'], 'ab') as f:
                 log_time = time.strftime("%Y-%m-%d %H:%M:%S")
                 out = u'{} {} {}\n'.format(log_time, level.upper(), msg)
                 try:
-                    f.write(out)
-                except UnicodeEncodeError:
+                    # Encode unicode strings to bytes
                     f.write(out.encode('utf-8'))
+                except (AttributeError, UnicodeDecodeError):
+                    # Write any byte strings straight to log
+                    f.write(out)
 
     def report_exception(self, msg, notify_user=True, level='error'):
         """
@@ -743,15 +750,21 @@ class Py3statusWrapper():
         # initialize usage variables
         i3status_thread = self.i3status_thread
         config = i3status_thread.config
-        self.create_output_modules()
 
         # prepare the color mappings
         self.create_mappings(config)
 
-        # start modules
         # self.output_modules needs to have been created before modules are
         # started.  This is so that modules can do things like register their
         # content_function.
+        self.create_output_modules()
+
+        # Some modules need to be prepared before they can run
+        # eg run their post_config_hook
+        for module in self.modules.values():
+            module.prepare_module()
+
+        # start modules
         for module in self.modules.values():
             module.start_module()
 
@@ -835,7 +848,11 @@ class Py3statusWrapper():
         elif cmd[:2] in (['docstring', 'check'], ['docstring', 'update']):
             if cmd[1] == 'check':
                 show_diff = len(cmd) > 2 and cmd[2] == 'diff'
-                docstrings.check_docstrings(show_diff, config)
+                if show_diff:
+                    mods = cmd[3:]
+                else:
+                    mods = cmd[2:]
+                docstrings.check_docstrings(show_diff, config, mods)
             if cmd[1] == 'update':
                 if len(cmd) < 3:
                     print_stderr('Error: you must specify what to update')
