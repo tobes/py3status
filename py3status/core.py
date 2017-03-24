@@ -17,6 +17,7 @@ from syslog import syslog, LOG_ERR, LOG_INFO, LOG_WARNING
 from traceback import extract_tb, format_tb, format_stack
 
 import py3status.docstrings as docstrings
+from py3status.constants import COLOR_NAMES
 from py3status.events import Events
 from py3status.helpers import print_line, print_stderr
 from py3status.i3status import I3status
@@ -699,6 +700,10 @@ class Py3statusWrapper():
         if hasattr(param, 'none_setting'):
             # check py3status general section
             param = py3_config['general'].get(attribute, self.none_setting)
+        if (not hasattr(param, 'none_setting') and param[0] != '#' and
+                (attribute == 'color' or attribute.startswith('color_'))):
+            # see if named color
+            param = COLOR_NAMES.get(param.lower(), self.none_setting)
         return param
 
     def create_mappings(self, config):
