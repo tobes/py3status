@@ -594,7 +594,10 @@ class Py3:
                 try:
                     # use py3status modules cache_timeout
                     seconds = self._py3status_module.cache_timeout
-                except AttributeError:
+                    # check we are a valid type for addition etc
+                    if not isinstance(seconds, (float, int)):
+                        seconds = float(seconds)
+                except (AttributeError, ValueError):
                     # use default cache_timeout
                     seconds = self._module.config['cache_timeout']
 
